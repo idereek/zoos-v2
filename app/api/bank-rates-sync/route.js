@@ -8,27 +8,70 @@ const CRON_SECRET = process.env.CRON_SECRET;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Банкны нэрийг тодорхойлоход ашиглах, тухайн банкны хvснэгтийн өмнө
+// гардаг вэбсайтын холбоосоор нь ялгах зорилготой түлхvvр vгс.
+const BANK_MARKERS = [
+  { key: "golomtbank.com", name: "Голомт" },
+  { key: "tdbm.mn", name: "ХХБанк" },
+  { key: "khanbank.com", name: "ХААН" },
+  { key: "capitronbank.mn", name: "Капитрон" },
+];
+
+const CURRENCY_CODES = ["USD", "EUR", "CNY", "RUB", "JPY", "GBP", "CHF", "KRW", "HKD", "AUD", "CAD", "SGD"];
+
+function extractFirstNumber(text) {
+  if (!text) return null;
+  const cleaned = text.replace(/,/g, "");
+  const match = cleaned.match(/-?\d+(\.\d+)?/);
+  return match ? parseFloat(match[0]) : null;
+}
+
 async function scrapeGogoRates() {
-  const res = await fetch("https://gogo.mn/", { cache: "no-store" });
+  const res = await fetch("https://gogo.mn/exchange", { cache: "no-store" });
   const html = await res.text();
 
   const rows = [];
-  // gogo.mn-ийн ханшийн хvснэгтийг маш энгийн regex-ээр задлах.
-  // Тухайн сайтын бvтэц өөрчлөгдвөл, энэ хэсгийг дахин тааруулах шаардлагатай.
+
+  // Хvснэгтvvдийг (<table>...</table>) тус тусад нь задлана.
+  const tableRegex = /<table[^>]*>([\s\S]*?)<\/table>/g;
   const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
   const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/g;
 
-  let match;
-  while ((match = rowRegex.exec(html)) !== null) {
-    const cells = [];
-    let cellMatch;
-    while ((cellMatch = cellRegex.exec(match[1])) !== null) {
-      cells.push(cellMatch[1].replace(/<[^>]+>/g, "").trim());
+  let lastBankName = null;
+  let searchIndex = 0;
+  let tableMatch;
+
+  while ((tableMatch = tableRegex.exec(html)) !== null) {
+    // Энэ хvснэгтийн ӨМНӨХ 500 тэмдэгтээс банкны нэрийг тодорхойлно.
+    const precedingText = html.slice(Math.max(0, tableMatch.index - 500), tableMatch.index);
+    const foundMarker = BANK_MARKERS.find((m) => precedingText.includes(m.key));
+    if (foundMarker) {
+      lastBankName = foundMarker.name;
     }
-    if (cells.length >= 4) {
-      rows.push(cells);
+    if (!lastBankName) continue;
+
+    const tableHtml = tableMatch[1];
+    let rowMatch;
+    while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
+      const cells = [];
+      let cellMatch;
+      while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
+        cells.push(cellMatch[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+      }
+      if (cells.length < 3) continue;
+
+      const currencyCell = cells[0];
+      const foundCurrency = CURRENCY_CODES.find((c) => currencyCell.includes(c));
+      if (!foundCurrency) continue;
+
+      const buy = extractFirstNumber(cells[1]);
+      const sell = extractFirstNumber(cells[2]);
+      if (buy == null || sell == null) continue;
+
+      rows.push([lastBankName, foundCurrency, buy, sell]);
     }
   }
+
   return rows;
 }
 
@@ -59,13 +102,7 @@ export async function GET(request) {
     const rows = await scrapeGogoRates();
 
     let upsertedCount = 0;
-    for (const row of rows) {
-      const [bank, currency, buyRate, sellRate] = row;
-      if (!bank || !currency) continue;
-      const buy = parseFloat(buyRate?.replace(/,/g, ""));
-      const sell = parseFloat(sellRate?.replace(/,/g, ""));
-      if (isNaN(buy) || isNaN(sell)) continue;
-
+    for (const [bank, currency, buy, sell] of rows) {
       await supabaseAdmin.from("bank_rates").upsert(
         {
           bank,
@@ -79,7 +116,7 @@ export async function GET(request) {
       upsertedCount++;
     }
 
-    return Response.json({ ok: true, upsertedCount });
+    return Response.json({ ok: true, upsertedCount, rowsFound: rows.length });
   } catch (err) {
     return Response.json({ ok: false, error: String(err.message || err) }, { status: 500 });
   }
