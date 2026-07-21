@@ -1,7 +1,7 @@
 "use client";
 
 import { createElement, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n/I18nContext";
 
 const CITIES = [
@@ -151,6 +151,11 @@ export function WorldClocksStrip() {
 
 export function HeroTitle() {
   const { lang } = useI18n();
+  const pathname = usePathname();
+
+  if (pathname !== "/") {
+    return null;
+  }
 
   const heroTitle = lang === "en" ? (
     <>Read the stock market <span className="accent-text">in your language</span></>
