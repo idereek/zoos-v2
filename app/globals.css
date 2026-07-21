@@ -1093,3 +1093,12 @@ a { color: inherit; }
   font-weight: 700;
   text-decoration: underline;
 }
+.bank-rates-group {
+  margin-bottom: 20px;
+}
+.bank-rates-bank-name {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--gold);
+}
