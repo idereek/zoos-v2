@@ -109,8 +109,8 @@ export async function GET(request) {
         {
           bank,
           currency,
-          buy_rate: buy,
-          sell_rate: sell,
+          buy_cash: buy,
+          sell_cash: sell,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "bank,currency" }
