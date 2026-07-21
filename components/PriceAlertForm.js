@@ -33,7 +33,7 @@ export default function PriceAlertForm({ userId, ticker, assetType, currentPrice
 
   return (
     <div className="alert-form-card">
-      <h3 className="alert-form-title">Vнийн сэрэмжлvvлэг тохируулах</h3>
+      <h3 className="alert-form-title">Үнийн сигнал тохируулах</h3>
       <form className="alert-form" onSubmit={handleSubmit}>
         <select
           className="alert-select"
@@ -45,7 +45,7 @@ export default function PriceAlertForm({ userId, ticker, assetType, currentPrice
         </select>
         <div className="alert-current-price">Одоо VНЭ: ${currentPrice}</div>
         <div className="alert-target-field">
-          <label className="alert-target-label">Сэрvvлэг авах vнэ</label>
+          <label className="alert-target-label">Сигнал авах үнэ</label>
           <input
             type="number"
             step="any"
