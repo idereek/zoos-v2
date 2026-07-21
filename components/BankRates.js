@@ -4,12 +4,22 @@ import { supabase } from "@/lib/supabaseClient";
 import { useI18n } from "@/lib/i18n/I18nContext";
 
 const LABELS = {
-  mn: { title: "Банкны ханш", currency: "Валют", buy: "Авах", sell: "Зарах", loading: "Ачаалж байна...", empty: "Мэдээлэл олдсонгvй." },
-  en: { title: "Bank rates", currency: "Currency", buy: "Buy", sell: "Sell", loading: "Loading...", empty: "No data found." },
+  mn: { title: "Банкны ханш", currency: "ВАЛЮТ", buy: "Авах", sell: "Зарах", loading: "Ачаалж байна...", empty: "Мэдээлэл олдсонгvй." },
+  en: { title: "Bank rates", currency: "CURRENCY", buy: "Buy", sell: "Sell", loading: "Loading...", empty: "No data found." },
 };
 
+const BANK_ORDER = [
+  { key: "mongolbank", label: "Монголбанк" },
+  { key: "ХХБанк", label: "ХХБанк (ХХБ)" },
+  { key: "Голомт", label: "Голомт Банк" },
+  { key: "ХААН", label: "ХААН Банк" },
+  { key: "Төрийн банк", label: "Төрийн Банк" },
+];
+
+const CURRENCY_ORDER = ["USD", "EUR", "GBP", "CAD", "AUD", "CNY", "RUB", "KRW"];
+
 export default function BankRates() {
-  const [groups, setGroups] = useState([]);
+  const [dataByBank, setDataByBank] = useState({});
   const [status, setStatus] = useState("loading");
   const { lang } = useI18n();
   const L = LABELS[lang] || LABELS.mn;
@@ -19,32 +29,20 @@ export default function BankRates() {
     supabase
       .from("bank_rates")
       .select("*")
-      .order("bank", { ascending: true })
-      .order("currency", { ascending: true })
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error || !data || !data.length) {
           setStatus("empty");
           return;
         }
-        const normalized = data.map((r) => ({
-          id: r.id,
-          bankKey: r.bank,
-          bankLabel: r.bank_name_mn || r.bank,
-          currency: r.currency,
-          buy: r.buy_cash ?? r.buy_rate ?? r.official ?? null,
-          sell: r.sell_cash ?? r.sell_rate ?? r.official ?? null,
-        }));
-
         const byBank = {};
-        normalized.forEach((r) => {
-          if (!byBank[r.bankKey]) {
-            byBank[r.bankKey] = { bankLabel: r.bankLabel, items: [] };
-          }
-          byBank[r.bankKey].items.push(r);
+        data.forEach((r) => {
+          const buy = r.buy_cash ?? r.buy_rate ?? r.official ?? null;
+          const sell = r.sell_cash ?? r.sell_rate ?? r.official ?? null;
+          if (!byBank[r.bank]) byBank[r.bank] = {};
+          byBank[r.bank][r.currency] = { buy, sell };
         });
-
-        setGroups(Object.values(byBank));
+        setDataByBank(byBank);
         setStatus("ready");
       });
     return () => {
@@ -55,33 +53,52 @@ export default function BankRates() {
   if (status === "loading") return <p className="bank-rates-loading">{L.loading}</p>;
   if (status === "empty") return null;
 
+  const activeBanks = BANK_ORDER.filter((b) => dataByBank[b.key]);
+  if (!activeBanks.length) return null;
+
   return (
     <section className="bank-rates-section">
       <h2>{L.title}</h2>
-      <div className="bank-rates-groups-row">
-      {groups.map((group) => (
-        <div className="bank-rates-group" key={group.bankLabel}>
-          <h3 className="bank-rates-bank-name">{group.bankLabel}</h3>
-          <table className="bank-rates-table">
-            <thead>
-              <tr>
-                <th>{L.currency}</th>
-                <th>{L.buy}</th>
-                <th>{L.sell}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {group.items.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.currency}</td>
-                  <td className="bank-rates-best">{r.buy != null ? r.buy : "—"}</td>
-                  <td className="bank-rates-best">{r.sell != null ? r.sell : "—"}</td>
-                </tr>
+      <div className="bank-rates-table-wrap">
+        <table className="bank-rates-table">
+          <thead>
+            <tr>
+              <th>{L.currency}</th>
+              {activeBanks.map((b) => (
+                <th key={b.key} colSpan={2}>{b.label}</th>
               ))}
-            </tbody>
-          </table>
-        </div>
-      ))}
+            </tr>
+            <tr>
+              <th></th>
+              {activeBanks.map((b) => (
+                <>
+                  <th key={b.key + "-buy"}>{L.buy}</th>
+                  <th key={b.key + "-sell"}>{L.sell}</th>
+                </>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {CURRENCY_ORDER.map((currency) => (
+              <tr key={currency}>
+                <td>{currency}</td>
+                {activeBanks.map((b) => {
+                  const rate = dataByBank[b.key]?.[currency];
+                  return (
+                    <>
+                      <td key={b.key + "-buy-" + currency} className="bank-rates-best">
+                        {rate?.buy != null ? rate.buy : "—"}
+                      </td>
+                      <td key={b.key + "-sell-" + currency} className="bank-rates-best">
+                        {rate?.sell != null ? rate.sell : "—"}
+                      </td>
+                    </>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </section>
   );
