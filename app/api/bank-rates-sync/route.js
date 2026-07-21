@@ -102,8 +102,10 @@ export async function GET(request) {
     const rows = await scrapeGogoRates();
 
     let upsertedCount = 0;
+    let errorCount = 0;
+    let firstError = null;
     for (const [bank, currency, buy, sell] of rows) {
-      await supabaseAdmin.from("bank_rates").upsert(
+      const { error } = await supabaseAdmin.from("bank_rates").upsert(
         {
           bank,
           currency,
@@ -113,10 +115,15 @@ export async function GET(request) {
         },
         { onConflict: "bank,currency" }
       );
-      upsertedCount++;
+      if (error) {
+        errorCount++;
+        if (!firstError) firstError = error.message;
+      } else {
+        upsertedCount++;
+      }
     }
 
-    return Response.json({ ok: true, upsertedCount, rowsFound: rows.length });
+    return Response.json({ ok: true, upsertedCount, errorCount, firstError, rowsFound: rows.length });
   } catch (err) {
     return Response.json({ ok: false, error: String(err.message || err) }, { status: 500 });
   }
