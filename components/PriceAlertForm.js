@@ -32,8 +32,8 @@ export default function PriceAlertForm({ userId, ticker, assetType, currentPrice
   }
 
   return (
-    <div className="alert-form-card">
-      <h3 className="alert-form-title">Үнийн сигнал тохируулах</h3>
+    <div className="analyst-card alert-form-card">
+      <h3 className="analyst-card-title">ҮНИЙН СИГНАЛ ТОХИРУУЛАХ</h3>
       <form className="alert-form" onSubmit={handleSubmit}>
         <select
           className="alert-select"
