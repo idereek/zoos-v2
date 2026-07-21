@@ -4,12 +4,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { useI18n } from "@/lib/i18n/I18nContext";
 
 const LABELS = {
-  mn: { title: "Банкны ханш", bank: "Банк", currency: "Валют", buy: "Авах", sell: "Зарах", loading: "Ачаалж байна...", empty: "Мэдээлэл олдсонгvй." },
-  en: { title: "Bank rates", bank: "Bank", currency: "Currency", buy: "Buy", sell: "Sell", loading: "Loading...", empty: "No data found." },
+  mn: { title: "Банкны ханш", currency: "Валют", buy: "Авах", sell: "Зарах", loading: "Ачаалж байна...", empty: "Мэдээлэл олдсонгvй." },
+  en: { title: "Bank rates", currency: "Currency", buy: "Buy", sell: "Sell", loading: "Loading...", empty: "No data found." },
 };
 
 export default function BankRates() {
-  const [rows, setRows] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [status, setStatus] = useState("loading");
   const { lang } = useI18n();
   const L = LABELS[lang] || LABELS.mn;
@@ -29,12 +29,22 @@ export default function BankRates() {
         }
         const normalized = data.map((r) => ({
           id: r.id,
+          bankKey: r.bank,
           bankLabel: r.bank_name_mn || r.bank,
           currency: r.currency,
           buy: r.buy_cash ?? r.buy_rate ?? r.official ?? null,
           sell: r.sell_cash ?? r.sell_rate ?? r.official ?? null,
         }));
-        setRows(normalized);
+
+        const byBank = {};
+        normalized.forEach((r) => {
+          if (!byBank[r.bankKey]) {
+            byBank[r.bankKey] = { bankLabel: r.bankLabel, items: [] };
+          }
+          byBank[r.bankKey].items.push(r);
+        });
+
+        setGroups(Object.values(byBank));
         setStatus("ready");
       });
     return () => {
@@ -48,26 +58,29 @@ export default function BankRates() {
   return (
     <section className="bank-rates-section">
       <h2>{L.title}</h2>
-      <table className="bank-rates-table">
-        <thead>
-          <tr>
-            <th>{L.bank}</th>
-            <th>{L.currency}</th>
-            <th>{L.buy}</th>
-            <th>{L.sell}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id}>
-              <td>{r.bankLabel}</td>
-              <td>{r.currency}</td>
-              <td className="bank-rates-best">{r.buy != null ? r.buy : "—"}</td>
-              <td className="bank-rates-best">{r.sell != null ? r.sell : "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {groups.map((group) => (
+        <div className="bank-rates-group" key={group.bankLabel}>
+          <h3 className="bank-rates-bank-name">{group.bankLabel}</h3>
+          <table className="bank-rates-table">
+            <thead>
+              <tr>
+                <th>{L.currency}</th>
+                <th>{L.buy}</th>
+                <th>{L.sell}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {group.items.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.currency}</td>
+                  <td className="bank-rates-best">{r.buy != null ? r.buy : "—"}</td>
+                  <td className="bank-rates-best">{r.sell != null ? r.sell : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
     </section>
   );
 }
