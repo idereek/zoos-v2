@@ -58,6 +58,7 @@ export default function BankRates() {
   return (
     <section className="bank-rates-section">
       <h2>{L.title}</h2>
+      <div className="bank-rates-groups-row">
       {groups.map((group) => (
         <div className="bank-rates-group" key={group.bankLabel}>
           <h3 className="bank-rates-bank-name">{group.bankLabel}</h3>
@@ -81,6 +82,7 @@ export default function BankRates() {
           </table>
         </div>
       ))}
+      </div>
     </section>
   );
 }
