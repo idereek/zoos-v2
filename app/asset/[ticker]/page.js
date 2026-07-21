@@ -114,27 +114,20 @@ export default function AssetDetailPage() {
       <PremiumGate>
         <AnalysisPanel quote={quote} />
       </PremiumGate>
-      {type === "stock" && (
-        <div className="analyst-info-grid">
-          <AnalystInfo ticker={ticker} />
-          <SocialSentiment ticker={ticker} />
-        </div>
-      )}
-      {type === "crypto" && (
-        <div className="analyst-info-grid">
-          <SocialSentiment ticker={ticker} />
-        </div>
-      )}
-      {user && (
-        <PremiumGate requiredTier="basic">
-          <PriceAlertForm
-            userId={user.id}
-            ticker={ticker}
-            assetType={type}
-            currentPrice={quote.current}
-          />
-        </PremiumGate>
-      )}
+      <div className="analyst-info-grid">
+        {type === "stock" && <AnalystInfo ticker={ticker} />}
+        <SocialSentiment ticker={ticker} />
+        {user && (
+          <PremiumGate requiredTier="basic">
+            <PriceAlertForm
+              userId={user.id}
+              ticker={ticker}
+              assetType={type}
+              currentPrice={quote.current}
+            />
+          </PremiumGate>
+        )}
+      </div>
       <NewsPanel ticker={ticker} type={type} nameHint={cryptoMeta?.name} />
     </div>
   );
